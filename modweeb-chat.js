@@ -210,7 +210,15 @@ function lazyLoadMessages() {
     }
 }
 
-// الدوال والـ event listeners الرئيسية:
+// modweeb-chat.js (الجزء العلوي كما هو)
+// ... جميع تعريفات الثوابت والدوال المساعدة (escapeHtml, isSafeUrl, renderRichText, loadUsage, etc.) ...
+
+// الدوال التي تعتمد على DOM
+// ... createUserMessage, createAiPlaceholder, buildConversationPayload, sendMessage, lazyLoadMessages, showStatus ...
+
+// ----------------------------------------------------------------------------------------------------
+// الدالة الرئيسية لتهيئة الأداة والتي يجب أن تحتوي على جميع الـ Event Listeners
+// ----------------------------------------------------------------------------------------------------
 function initializeChatWidget() {
     const chatBtn = document.getElementById("modweeb-chat-btn");
     const chatContainer = document.getElementById("modweeb-chat-container");
@@ -223,11 +231,13 @@ function initializeChatWidget() {
     const messagesDiv = document.getElementById("modweeb-messages");
     const head = document.getElementById("modweeb-head");
 
+    // تحقق من وجود جميع العناصر الأساسية
     if (!chatBtn || !chatContainer || !chatCloseBtn || !txt || !charsUI || !sendBtn || !copyAllBtn || !clearChatBtn || !messagesDiv || !head) {
         console.error("Modweeb Chat Widget: One or more required DOM elements not found. Initialisation aborted.");
-        return;
+        return; // توقف عن التنفيذ إذا لم يتم العثور على العناصر
     }
 
+    // Event Listeners
     chatBtn.onclick = function() {
         chatContainer.style.display = "flex";
         chatContainer.style.position = "fixed";
@@ -306,4 +316,87 @@ function initializeChatWidget() {
     };
 
     clearChatBtn.onclick = function() {
-        localStorage
+        localStorage.removeItem(HISTORY_KEY);
+        messagesDiv.innerHTML = "";
+        messagesLoaded = !1;
+        lazyLoadMessages();
+        showStatus("تم حذف المحادثة!");
+    };
+
+    messagesDiv.addEventListener("click", function(e) {
+        let t = e.target;
+        if (t.closest(".copy-reply")) {
+            let n = t.closest(".modweeb-msg-ai");
+            if (!n) return;
+            let s = n.querySelector(".bubble").innerText || "";
+            navigator.clipboard.writeText(s).then(() => showStatus("تم نسخ الرد!"));
+        }
+        if (t.closest(".edit-user")) {
+            let a = t.closest(".modweeb-msg-user");
+            if (!a) return;
+            let l = a.querySelector(".bubble").innerText || "";
+            txt.value = l;
+            txt.focus();
+            txt.dispatchEvent(new Event("input"));
+        }
+    });
+
+    sendBtn.onclick = async function() {
+        let e = txt.value.trim();
+        if (!e) return;
+        let t = "1" === localStorage.getItem(DEV_FLAG_KEY);
+        if (!t) {
+            let n = loadUsage();
+            if (n.count >= n.limit) {
+                showStatus("تم تجاوز الحد اليومي للرسائل");
+                return;
+            }
+        }
+        createUserMessage(e);
+        txt.value = "";
+        txt.style.height = "auto";
+        charsUI.textContent = `0 أحرف`;
+        let s = createAiPlaceholder();
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        saveHistory();
+        await sendMessage(e, s);
+    };
+
+    restoreHistory();
+    refreshUsageUI();
+
+    let headerClickCount = 0,
+        headerClickTimer = null;
+    function modweebTrackEvent(e, t) {
+        window.gtag && gtag("event", e, t || {})
+    }
+
+    function adjustForKeyboard() {
+        let e = window.visualViewport.height,
+            t = window.innerHeight;
+        t - e > 150 ? (document.getElementById("modweeb-chat-container").style.bottom = "10px", document.getElementById("modweeb-chat-btn").style.bottom = "10px") : (document.getElementById("modweeb-chat-container").style.bottom = "142px", document.getElementById("modweeb-chat-btn").style.bottom = "88px")
+    }
+
+    head.addEventListener("click", function(e) {
+        if (headerClickCount++, headerClickTimer && clearTimeout(headerClickTimer), headerClickTimer = setTimeout(() => {
+                headerClickCount = 0
+            }, 4e3), headerClickCount >= 5) {
+            headerClickCount = 0;
+            let t = "1" === localStorage.getItem(DEV_FLAG_KEY);
+            t ? (localStorage.removeItem(DEV_FLAG_KEY), showStatus("وضع المطور معطل")) : (localStorage.setItem(DEV_FLAG_KEY, "1"), showStatus("وضع المطور مفعل: غير محدود"));
+            refreshUsageUI();
+        }
+    });
+
+    messagesDiv.style.minHeight = "60px";
+    window.visualViewport.addEventListener("resize", adjustForKeyboard);
+    window.visualViewport.addEventListener("scroll", adjustForKeyboard);
+    document.addEventListener("click", function(e) {
+        let t = document.getElementById("modweeb-chat-container"),
+            n = document.getElementById("modweeb-chat-btn");
+        "flex" !== t.style.display || t.contains(e.target) || n.contains(e.target) || (t.style.display = "none")
+    });
+} // <--- هذه هي نهاية دالة initializeChatWidget الصحيحة
+
+// استدعاء دالة التهيئة عند تحميل DOM بالكامل
+document.addEventListener("DOMContentLoaded", initializeChatWidget);

@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // تحميل ملف JavaScript الرئيسي
     const chatScript = document.createElement("script");
-    chatScript.src = "https://cdn.jsdelivr.net/gh/zerootem/chat-ai@main/modweeb-chat.js"; // تأكد من 'main' أو الفرع الافتراضي لمستودعك
+    chatScript.src = "https://cdn.jsdelivr.net/gh/zerootem/chat-ai@main/modweebk-chat.js"; // تأكد من 'main' أو الفرع الافتراضي لمستودعك
     chatScript.defer = true; // لضمان التنفيذ بعد تحليل HTML
     document.body.appendChild(chatScript);
 
